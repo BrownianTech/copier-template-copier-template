@@ -48,6 +48,20 @@
       "pinDigests": false
     },
     {
+      "description": "Only major action updates in the template, for the same reason: generated projects apply minor/patch updates with their own Renovate. Most actions use major-only tags anyway, but some (e.g. astral-sh/setup-uv) only publish full versions.",
+      "matchFileNames": [
+        "meta_template/**"
+      ],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "enabled": false
+    },
+    {
       "matchDatasources": [
         "docker"
       ],

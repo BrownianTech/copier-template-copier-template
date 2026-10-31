@@ -54,7 +54,7 @@ jobs:
         run: uv run python-semantic-release version
 
       - name: Publish to GitHub Releases
-        uses: python-semantic-release/publish-action@v10.5.3
+        uses: python-semantic-release/publish-action@v10
         if: steps.release.outputs.released == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
