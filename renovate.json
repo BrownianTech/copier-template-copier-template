@@ -41,6 +41,16 @@
   },
   "packageRules": [
     {
+      "description": "actions.lock pins actions to commits, and gh actions-lock rewrites digest refs back to tags. Possibly unnecessary with the 'Require actions to be pinned to a full-length commit SHA' policy enabled, under which gh actions-lock is documented to keep digest refs (untested). Scoped to .github, as the template's workflows ship digests.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchFileNames": [
+        ".github/workflows/**"
+      ],
+      "pinDigests": false
+    },
+    {
       "description": "Template updates use build commits, which trigger a patch release (see tool.semantic_release in pyproject.toml) so users get them on copier update.",
       "matchFileNames": [
         "meta_template/**"
