@@ -40,7 +40,9 @@ tests:
     - export PATH="/home/$TEST_USER/.local/bin:$PATH"
     - runuser -u "$TEST_USER" -- sh -c 'curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh'
     - runuser -u "$TEST_USER" -- uv python install $PYTHON_VERSION
-    - runuser -u "$TEST_USER" -- sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "/home/$TEST_USER/.local/bin" "$GO_TASK_VERSION"
+    - >-
+      runuser -u "$TEST_USER" -- sh -c "$(curl --location https://taskfile.dev/install.sh)" --
+      -d -b "/home/$TEST_USER/.local/bin" "$GO_TASK_VERSION"
     - runuser -u "$TEST_USER" -- task dev-setup:venv:ci
   script:
     - runuser -u "$TEST_USER" -- task test

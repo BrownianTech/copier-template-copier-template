@@ -42,6 +42,20 @@ def test_gitlab_non_root_tests_job(sub_project: Path, expected: bool) -> None:
 
 
 @pytest.mark.parametrize(
+    'sub_project',
+    [
+        {'vcs_platform': 'gitlab', 'gitlab_non_root_tests': True},
+        {'vcs_platform': 'gitlab'},
+    ],
+    indirect=True,
+)
+def test_gitlab_ci_line_length(sub_project: Path) -> None:
+    """Lines fit yamllint's 120 limit used by projects from the pre-commit template."""
+    gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
+    assert max(len(line) for line in gitlab_ci.read_text().splitlines()) <= 120
+
+
+@pytest.mark.parametrize(
     ('sub_project', 'expected'),
     [
         ({'vcs_platform': 'gitlab', 'gitlab_non_root_tests': True}, True),
