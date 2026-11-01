@@ -8,6 +8,11 @@ name: Tests
     branches: [main]
   workflow_call:
 
+# Cancel superseded runs of the same pull request; never cancel branch pushes
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
