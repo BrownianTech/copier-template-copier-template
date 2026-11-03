@@ -11,7 +11,7 @@ tests:
       - PYTHON_VERSION: ["<< python_versions | join('", "') >>"]
   variables:
     # renovate: datasource=github-releases depName=astral-sh/uv
-    UV_VERSION: "0.13.6"
+    UV_VERSION: "0.13.7"
     # renovate: datasource=github-releases depName=go-task/task
     GO_TASK_VERSION: "v3.54.0"
     UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
@@ -71,7 +71,7 @@ release:
   image: debian:trixie-slim
   variables:
     # renovate: datasource=github-releases depName=astral-sh/uv
-    UV_VERSION: "0.13.6"
+    UV_VERSION: "0.13.7"
     UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
     GIT_DEPTH: "0"
   rules:
