@@ -38,10 +38,10 @@ def test_jobs_install_uv_from_script(sub_project: Path, jobs: set[str]) -> None:
         before_script = job['before_script']
         # Recommends would add packages the job doesn't use, so the ones it
         # needs, ca-certificates included, are named
-        assert before_script[0] == (
+        assert (
             'apt-get update && apt-get install --no-install-recommends -y '
             'ca-certificates curl git'
-        )
+        ) in before_script[0]
         assert INSTALL_UV in before_script
         switch_user = [i for i, cmd in enumerate(before_script) if 'runuser' in cmd]
         assert before_script.index(INSTALL_UV) < min(
@@ -64,5 +64,7 @@ def test_install_uv_script(sub_project: Path) -> None:
     )
     assert '"$url.sha256"' in text
     assert 'sha256sum --check --strict' in text
+    # Skipped when the image already has the pinned version
+    assert '[[ "$(installed_version uv --version)" == "$UV_VERSION" ]]' in text
     assert 'install.sh' not in text
     assert '| sh' not in text

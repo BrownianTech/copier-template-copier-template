@@ -17,6 +17,19 @@ set -euo pipefail
 : "${DOCKER_BUILDX_PLUGIN_VERSION:?DOCKER_BUILDX_PLUGIN_VERSION must be set}"
 : "${DOCKER_COMPOSE_PLUGIN_VERSION:?DOCKER_COMPOSE_PLUGIN_VERSION must be set}"
 
+# Prints the first x.y.z version in a command's output, or nothing
+installed_version() {
+    "$@" 2> /dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
+}
+
+# Nothing to do when the image already has them, e.g. a prebuilt CI image
+if [[ "$(installed_version docker --version)" == "$DOCKER_CE_CLI_VERSION" ]] \
+    && [[ "$(installed_version docker buildx version)" == "$DOCKER_BUILDX_PLUGIN_VERSION" ]] \
+    && [[ "$(installed_version docker compose version --short)" == "$DOCKER_COMPOSE_PLUGIN_VERSION" ]]; then
+    echo "Docker client $DOCKER_CE_CLI_VERSION is already installed"
+    exit 0
+fi
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 keyring=/etc/apt/keyrings/docker.asc
 
@@ -55,7 +68,8 @@ cli_version="$(apt_version docker-ce-cli "$DOCKER_CE_CLI_VERSION")"
 buildx_version="$(apt_version docker-buildx-plugin "$DOCKER_BUILDX_PLUGIN_VERSION")"
 compose_version="$(apt_version docker-compose-plugin "$DOCKER_COMPOSE_PLUGIN_VERSION")"
 
-apt-get install --no-install-recommends -y \
+# Downgrades too, for an image with newer versions than the CI file pins
+apt-get install --no-install-recommends --allow-downgrades -y \
     "docker-ce-cli=$cli_version" \
     "docker-buildx-plugin=$buildx_version" \
     "docker-compose-plugin=$compose_version"

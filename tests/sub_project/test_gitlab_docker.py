@@ -74,6 +74,9 @@ def test_install_docker_client_script(sub_project: Path) -> None:
     text = script.read_text()
     for package, variable in DOCKER_PACKAGES.items():
         assert f'apt_version {package} "${variable}"' in text
+        # Skipped when the image already has the pinned versions
+        assert f'== "${variable}" ]]' in text
+    assert '--allow-downgrades' in text
     # The image's Debian release picks the build, it isn't hard-coded
     assert 'VERSION_CODENAME' in text
     assert 'https://download.docker.com/linux/debian' in text

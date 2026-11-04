@@ -50,7 +50,12 @@ tests:
     DOCKER_COMPOSE_PLUGIN_VERSION: "5.7.0"
 <% endif %>
   before_script:
-    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+    # Skipped when the image already has them, e.g. a prebuilt CI image
+    - |
+      if ! command -v curl > /dev/null || ! command -v git > /dev/null \
+          || [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
+        apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+      fi
     - bash "scripts/<< template_name >>/install-uv.sh"
     - bash "scripts/<< template_name >>/install-task.sh"
 <% if gitlab_docker %>
@@ -106,7 +111,12 @@ release:
   environment: release
 <% endif %>
   before_script:
-    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+    # Skipped when the image already has them, e.g. a prebuilt CI image
+    - |
+      if ! command -v curl > /dev/null || ! command -v git > /dev/null \
+          || [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
+        apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+      fi
     - bash "scripts/<< template_name >>/install-uv.sh"
     - uv sync --locked --group dev
   script:

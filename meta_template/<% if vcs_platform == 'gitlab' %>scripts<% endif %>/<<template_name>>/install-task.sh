@@ -13,6 +13,17 @@ set -euo pipefail
 
 : "${TASK_VERSION:?TASK_VERSION must be set, e.g. 3.54.0}"
 
+# Prints the first x.y.z version in a command's output, or nothing
+installed_version() {
+    "$@" 2> /dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
+}
+
+# Nothing to do when the image already has it, e.g. a prebuilt CI image
+if [[ "$(installed_version task --version)" == "$TASK_VERSION" ]]; then
+    echo "Task $TASK_VERSION is already installed"
+    exit 0
+fi
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 keyring=/etc/apt/keyrings/task.asc
 
@@ -31,4 +42,5 @@ echo "deb [signed-by=$keyring] https://dl.cloudsmith.io/public/task/task/deb/deb
     > /etc/apt/sources.list.d/task.list
 
 apt-get update
-apt-get install --no-install-recommends -y "task=$TASK_VERSION"
+# Downgrades too, for an image with a newer version than the CI file pins
+apt-get install --no-install-recommends --allow-downgrades -y "task=$TASK_VERSION"

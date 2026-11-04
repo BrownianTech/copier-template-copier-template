@@ -12,6 +12,18 @@ set -euo pipefail
 
 : "${UV_VERSION:?UV_VERSION must be set, e.g. 0.13.7}"
 
+# Prints the first x.y.z version in a command's output, or nothing
+installed_version() {
+    "$@" 2> /dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 || true
+}
+
+# Nothing to do when the image already has it, e.g. a prebuilt CI image
+if [[ "$(installed_version uv --version)" == "$UV_VERSION" ]] \
+    && [[ "$(installed_version uvx --version)" == "$UV_VERSION" ]]; then
+    echo "uv $UV_VERSION is already installed"
+    exit 0
+fi
+
 case "$(uname -m)" in
     x86_64) target=x86_64-unknown-linux-gnu ;;
     aarch64 | arm64) target=aarch64-unknown-linux-gnu ;;
