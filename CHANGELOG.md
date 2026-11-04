@@ -2,6 +2,17 @@
 
 <!-- version list -->
 
+## v0.27.2 (2026-11-04)
+
+### Bug Fixes
+
+- Skip the GitLab release job when GITLAB_TOKEN isn't set
+  ([`b6aada4`](https://github.com/cbrown1234/copier-template-copier-template/commit/b6aada4c3a49295ccd7a08e41d7394dc634e6b5a))
+
+- Skip the release job in forks
+  ([`65b9aae`](https://github.com/cbrown1234/copier-template-copier-template/commit/65b9aaebb47f939a187f76087abd56d8769dffbd))
+
+
 ## v0.27.1 (2026-11-03)
 
 ### Build System
