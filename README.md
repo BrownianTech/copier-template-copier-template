@@ -67,13 +67,14 @@ This template does not generate a `.pre-commit-config.yaml`. Pre-commit configur
 
 ## Beta features
 
-Beta features are hidden: Copier doesn't ask about them, and they're off unless you opt in. Opting in records the answer, so `copier update` keeps the feature. Projects that don't opt in are asked as normal once a feature graduates.
+Beta features are hidden: Copier doesn't ask about them, and uses the default unless you pass another value. Passing one records the answer, so `copier update` keeps it. Projects that keep the default are asked as normal once a feature graduates.
 
-| Flag | Description |
-|---|---|
-| `include_actions_lockfile` | GitHub only. Verify the [GitHub Actions workflow lockfile](https://docs.github.com/en/actions/concepts/security/workflow-dependency-lockfiles) in CI, and configure Renovate to keep it up to date |
-| `gitlab_non_root_tests` | GitLab only. Run the generated CI tests as a non-root user, so permission issues (e.g. root-owned files from docker bind mounts) show up in CI as they would locally |
-| `pre_commit_tool` | Run the hooks with [pre-commit](https://pre-commit.com/) instead of [prek](https://github.com/j178/prek) in the dev-setup and lint tasks and the CI tests job. Opt in with `pre_commit_tool=pre-commit` |
+| Flag | Default | Other values | Description |
+|---|---|---|---|
+| `include_actions_lockfile` | `false` | `true` | GitHub only. Verify the [GitHub Actions workflow lockfile](https://docs.github.com/en/actions/concepts/security/workflow-dependency-lockfiles) in CI, and configure Renovate to keep it up to date |
+| `gitlab_non_root_tests` | `false` | `true` | GitLab only. Run the generated CI tests as a non-root user, so permission issues (e.g. root-owned files from docker bind mounts) show up in CI as they would locally |
+| `gitlab_docker` | `true` | `false` | GitLab only. Leave Docker out of the generated CI tests job (no docker:dind service or Docker CLI). Use it when the template's tests don't use Docker, to speed up the job (no waiting for the service to start or installing the client), or when your runners can't run privileged containers |
+| `pre_commit_tool` | `prek` | `pre-commit` | Run the hooks with [pre-commit](https://pre-commit.com/) instead of [prek](https://github.com/j178/prek) in the dev-setup and lint tasks and the CI tests job |
 
 ### Usage
 
@@ -89,4 +90,4 @@ Or add it to an existing project:
 copier update -d include_actions_lockfile=true --answers-file .copier-answers.copier-template.yml
 ```
 
-Pass `-d <flag>=true` for each flag you want (`-d pre_commit_tool=pre-commit` for `pre_commit_tool`). To opt out, run `copier update` with `-d <flag>=false` (`-d pre_commit_tool=prek`).
+Pass `-d <flag>=<value>` for each flag you want to change, with one of its other values. To go back, run `copier update` with `-d <flag>=<default>`.
