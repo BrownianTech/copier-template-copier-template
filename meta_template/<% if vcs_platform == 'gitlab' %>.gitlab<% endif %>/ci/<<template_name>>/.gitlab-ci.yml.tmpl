@@ -3,10 +3,10 @@ tests:
   stage: test
   needs: []
   image:
-    name: debian:trixie-slim
+    name: debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
 <% if gitlab_docker %>
   services:
-    - name: docker:dind
+    - name: docker:dind@sha256:d035bd30886e451b2727ef3cdb9af9a5c537a10d4bc5d18c08d0ffa597e46aeb
 <% endif %>
   parallel:
     matrix:
@@ -77,7 +77,7 @@ tests:
 
 release:
   stage: release
-  image: debian:trixie-slim
+  image: debian:trixie-slim@sha256:f6b08b09a05725f9431502d3b5714f5c4576e82c1a84fa1debe0c24a7e0c3ec4
   variables:
     # renovate: datasource=github-releases depName=astral-sh/uv
     UV_VERSION: "0.13.7"

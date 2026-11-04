@@ -72,7 +72,10 @@ def openpgp_fingerprint(armored: str) -> str:
 def test_gitlab_docker_tests_job(sub_project: Path, expected: bool) -> None:
     """The tests job gets the dind service and Docker client only when enabled."""
     job = load_tests_job(sub_project)
-    assert (job.get('services') == [{'name': 'docker:dind'}]) == expected
+    services = [service['name'] for service in job.get('services', [])]
+    assert (
+        len(services) == 1 and services[0].startswith('docker:dind@sha256:')
+    ) == expected
     assert ('DOCKER_HOST' in job['variables']) == expected
     assert (
         'bash "scripts/copier-template/install-docker-client.sh"'

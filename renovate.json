@@ -32,6 +32,18 @@
       ],
       "depNameTemplate": "copier",
       "datasourceTemplate": "pypi"
+    },
+    {
+      "customType": "regex",
+      "description": "Digest-pinned images in GitLab CI templates, which the gitlabci manager can't parse because of the template tags",
+      "managerFilePatterns": [
+        "/^meta_template/.+/\\.gitlab-ci\\.ya?ml\\.tmpl$/"
+      ],
+      "matchStrings": [
+        "(?<depName>[a-z0-9][a-z0-9._/-]*):(?<currentValue>[A-Za-z0-9][A-Za-z0-9._-]*)@(?<currentDigest>sha256:[a-f0-9]{64})"
+      ],
+      "datasourceTemplate": "docker",
+      "autoReplaceStringTemplate": "{{depName}}:{{newValue}}@{{newDigest}}"
     }
   ],
   "github-actions": {
@@ -101,6 +113,21 @@
       ],
       "automerge": false,
       "prConcurrentLimit": 7
+    },
+    {
+      "description": "Digest updates on rolling image tags (like trixie-slim or dind) are routine, so automerge them as generated projects' Renovate does, keeping the template's pins in step. Must stay after the review rule above, which it overrides.",
+      "matchFileNames": [
+        "meta_template/**"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "matchCurrentValue": "!/^v?\\d+\\.\\d+\\.\\d+/",
+      "automerge": true,
+      "prConcurrentLimit": 10
     },
     {
       "description": "Release template majors as a minor version, listed under Features.",
