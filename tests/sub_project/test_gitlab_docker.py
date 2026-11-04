@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
 import os
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
+
+from tests.helpers import openpgp_fingerprint
 
 DOCKER_PACKAGES = 'docker-ce-cli docker-buildx-plugin docker-compose-plugin'
 # Docker's published fingerprint for its apt repo signing key, see
@@ -24,32 +24,6 @@ def scripts_dir(sub_project: Path) -> Path:
 def load_tests_job(sub_project: Path) -> dict[str, Any]:
     gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
     return yaml.safe_load(gitlab_ci.read_text())['tests']
-
-
-def openpgp_fingerprint(armored: str) -> str:
-    """V4 fingerprint of the primary key in an ASCII-armored public key block."""
-    lines = armored.strip().splitlines()
-    body = lines[lines.index('') + 1 :]
-    base64_lines = [line for line in body if not line.startswith(('=', '-'))]
-    data = base64.b64decode(''.join(base64_lines))
-    tag = data[0]
-    assert tag & 0x80, 'not an OpenPGP packet'
-    if tag & 0x40:  # new-format header
-        packet_tag, length_octet = tag & 0x3F, data[1]
-        assert length_octet in range(192, 224), 'unsupported packet length'
-        length = ((length_octet - 192) << 8) + data[2] + 192
-        start = 3
-    else:  # old-format header, only 2-byte lengths are used for keys this size
-        packet_tag = (tag >> 2) & 0x0F
-        assert tag & 0x03 == 1, 'unsupported packet length'
-        length = int.from_bytes(data[1:3])
-        start = 3
-    assert packet_tag == 6, 'first packet is not a public key'
-    packet = data[start : start + length]
-    assert packet[0] == 4, 'not a v4 key'
-    # V4 fingerprints are defined as SHA-1, this only compares against a known value
-    digest = hashlib.sha1(b'\x99' + length.to_bytes(2) + packet, usedforsecurity=False)
-    return digest.hexdigest().upper()
 
 
 @pytest.mark.parametrize(
@@ -80,16 +54,6 @@ def test_gitlab_docker_tests_job(sub_project: Path, expected: bool) -> None:
     ) == expected
     assert (scripts_dir(sub_project) / 'install-docker-client.sh').exists() == expected
     assert (scripts_dir(sub_project) / 'docker.asc').exists() == expected
-
-
-@pytest.mark.parametrize(
-    'sub_project',
-    [{'vcs_platform': 'gitlab', 'gitlab_docker': False}, {'vcs_platform': 'github'}],
-    indirect=True,
-)
-def test_no_scripts_dir_without_gitlab_docker(sub_project: Path) -> None:
-    """Copier doesn't leave an empty scripts/ behind when nothing renders into it."""
-    assert not (sub_project / 'scripts').exists()
 
 
 @pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)

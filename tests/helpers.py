@@ -1,5 +1,7 @@
 """Useful methods for testing copier templates."""
 
+import base64
+import hashlib
 from pathlib import Path
 
 from plumbum import local
@@ -44,3 +46,29 @@ def git_save(
 def is_git_repo_dirty() -> bool:
     """Check if the git repository has uncommitted changes."""
     return bool(git('status', '--porcelain').strip())
+
+
+def openpgp_fingerprint(armored: str) -> str:
+    """V4 fingerprint of the primary key in an ASCII-armored public key block."""
+    lines = armored.strip().splitlines()
+    body = lines[lines.index('') + 1 :]
+    base64_lines = [line for line in body if not line.startswith(('=', '-'))]
+    data = base64.b64decode(''.join(base64_lines))
+    tag = data[0]
+    assert tag & 0x80, 'not an OpenPGP packet'
+    if tag & 0x40:  # new-format header
+        packet_tag, length_octet = tag & 0x3F, data[1]
+        assert length_octet in range(192, 224), 'unsupported packet length'
+        length = ((length_octet - 192) << 8) + data[2] + 192
+        start = 3
+    else:  # old-format header, only 2-byte lengths are used for keys this size
+        packet_tag = (tag >> 2) & 0x0F
+        assert tag & 0x03 == 1, 'unsupported packet length'
+        length = int.from_bytes(data[1:3])
+        start = 3
+    assert packet_tag == 6, 'first packet is not a public key'
+    packet = data[start : start + length]
+    assert packet[0] == 4, 'not a v4 key'
+    # V4 fingerprints are defined as SHA-1, this only compares against a known value
+    digest = hashlib.sha1(b'\x99' + length.to_bytes(2) + packet, usedforsecurity=False)
+    return digest.hexdigest().upper()

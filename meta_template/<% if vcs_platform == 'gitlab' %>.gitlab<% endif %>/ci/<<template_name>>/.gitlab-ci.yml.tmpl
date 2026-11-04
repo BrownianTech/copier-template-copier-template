@@ -14,8 +14,10 @@ tests:
   variables:
     # renovate: datasource=github-releases depName=astral-sh/uv
     UV_VERSION: "0.13.7"
-    # renovate: datasource=github-releases depName=go-task/task
-    GO_TASK_VERSION: "v3.54.0"
+    # Looked up in the apt repo install-task.sh installs from, so Renovate only
+    # proposes versions that install
+    # renovate: datasource=deb depName=go-task/task packageName=task registryUrl=https://dl.cloudsmith.io/public/task/task/deb/debian?suite=any-version&components=main&binaryArch=amd64
+    TASK_VERSION: "3.54.0"
     UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
     << pre_commit_home_var >>: "$CI_PROJECT_DIR/.cache/<< pre_commit_tool >>"
     UV_PYTHON: "$PYTHON_VERSION"
@@ -39,6 +41,7 @@ tests:
 <% endif %>
   before_script:
     - apt-get update && apt-get install -y git curl
+    - bash "scripts/<< template_name >>/install-task.sh"
 <% if gitlab_docker %>
     # Docker client and plugins only, the docker:dind service runs the daemon
     - bash "scripts/<< template_name >>/install-docker-client.sh"
@@ -49,7 +52,6 @@ tests:
     - export PATH="/home/$TEST_USER/.local/bin:$PATH"
     - runuser -u "$TEST_USER" -- sh -c 'curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh'
     - runuser -u "$TEST_USER" -- uv python install $PYTHON_VERSION
-    - runuser -u "$TEST_USER" -- sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "/home/$TEST_USER/.local/bin" "$GO_TASK_VERSION"
     - runuser -u "$TEST_USER" -- task dev-setup:venv:ci
   script:
     - runuser -u "$TEST_USER" -- task test
@@ -61,7 +63,6 @@ tests:
     - curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
     - source $HOME/.local/bin/env
     - uv python install $PYTHON_VERSION
-    - sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin "$GO_TASK_VERSION"
     - task dev-setup:venv:ci
   script:
     - task test
