@@ -20,9 +20,12 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 keyring=/etc/apt/keyrings/docker.asc
 
-# Needed to reach Docker's repo over HTTPS, and missing from slim images
-apt-get update
-apt-get install --no-install-recommends -y ca-certificates
+# Needed to reach Docker's repo over HTTPS, and missing from slim images. CI
+# installs it first, which saves an apt-get update here
+if [[ ! -e /etc/ssl/certs/ca-certificates.crt ]]; then
+    apt-get update
+    apt-get install --no-install-recommends -y ca-certificates
+fi
 
 install -D -m 0644 "$script_dir/docker.asc" "$keyring"
 

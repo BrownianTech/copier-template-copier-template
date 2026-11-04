@@ -36,6 +36,12 @@ def test_jobs_install_uv_from_script(sub_project: Path, jobs: set[str]) -> None:
     for name in jobs:
         job = gitlab_ci[name]
         before_script = job['before_script']
+        # Recommends would add packages the job doesn't use, so the ones it
+        # needs, ca-certificates included, are named
+        assert before_script[0] == (
+            'apt-get update && apt-get install --no-install-recommends -y '
+            'ca-certificates curl git'
+        )
         assert INSTALL_UV in before_script
         switch_user = [i for i, cmd in enumerate(before_script) if 'runuser' in cmd]
         assert before_script.index(INSTALL_UV) < min(

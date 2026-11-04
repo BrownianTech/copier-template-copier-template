@@ -50,7 +50,7 @@ tests:
     DOCKER_COMPOSE_PLUGIN_VERSION: "5.7.0"
 <% endif %>
   before_script:
-    - apt-get update && apt-get install -y git curl
+    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
     - bash "scripts/<< template_name >>/install-uv.sh"
     - bash "scripts/<< template_name >>/install-task.sh"
 <% if gitlab_docker %>
@@ -106,7 +106,7 @@ release:
   environment: release
 <% endif %>
   before_script:
-    - apt-get update && apt-get install -y git curl
+    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
     - bash "scripts/<< template_name >>/install-uv.sh"
     - uv sync --locked --group dev
   script:

@@ -21,8 +21,9 @@ case "$(uname -m)" in
         ;;
 esac
 
-# Missing from slim images
-if ! command -v curl > /dev/null; then
+# Missing from slim images. CI installs them first, which saves an
+# apt-get update here
+if ! command -v curl > /dev/null || [[ ! -e /etc/ssl/certs/ca-certificates.crt ]]; then
     apt-get update
     apt-get install --no-install-recommends -y ca-certificates curl
 fi
