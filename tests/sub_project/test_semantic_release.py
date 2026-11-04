@@ -39,3 +39,15 @@ def test_semantic_release_files(sub_project: Path, expected: bool) -> None:
         assert ('release' in yaml.safe_load(gitlab_ci.read_text())) == expected
     else:
         assert github_release.exists() == expected
+
+
+@pytest.mark.parametrize(
+    'sub_project',
+    [{'vcs_platform': 'github', 'include_semantic_release': True}],
+    indirect=True,
+)
+def test_github_release_skipped_on_forks(sub_project: Path) -> None:
+    """The release job doesn't run in forks, which lack the upstream tags."""
+    workflow = sub_project / '.github' / 'workflows' / 'release.yml'
+    job = yaml.safe_load(workflow.read_text())['jobs']['release']
+    assert job['if'] == '${{ !github.event.repository.fork }}'
