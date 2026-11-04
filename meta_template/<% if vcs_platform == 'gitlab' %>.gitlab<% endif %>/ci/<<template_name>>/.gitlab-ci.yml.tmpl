@@ -79,6 +79,9 @@ release:
       when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       when: never
+    # Forks don't copy CI/CD variables, so this also keeps releases out of forks
+    - if: $GITLAB_TOKEN == null || $GITLAB_TOKEN == ""
+      when: never
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 <% if release_approval %>
       when: manual
