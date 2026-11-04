@@ -43,6 +43,8 @@ python-semantic-release [does not support `CI_JOB_TOKEN`](https://github.com/pyt
 
 1. Create a project access token with Maintainer role and `api` + `write_repository` scopes.
 2. Add it as a CI/CD variable named `GITLAB_TOKEN` (masked, protected).
+
+The `release` job only runs when `GITLAB_TOKEN` is set. That keeps it out of forks, which don't copy CI/CD variables, and means a project without the token gets no release job rather than a failing one.
 <% if release_approval %>
 
 ### Release approval
