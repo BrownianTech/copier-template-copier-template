@@ -51,6 +51,7 @@ tests:
 <% endif %>
   before_script:
     - apt-get update && apt-get install -y git curl
+    - bash "scripts/<< template_name >>/install-uv.sh"
     - bash "scripts/<< template_name >>/install-task.sh"
 <% if gitlab_docker %>
     # Docker client and plugins only, the docker:dind service runs the daemon
@@ -60,7 +61,6 @@ tests:
     - useradd --create-home "$TEST_USER"
     - chown -R "$TEST_USER:" "$CI_PROJECT_DIR"
     - export PATH="/home/$TEST_USER/.local/bin:$PATH"
-    - runuser -u "$TEST_USER" -- sh -c 'curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh'
     - runuser -u "$TEST_USER" -- uv python install $PYTHON_VERSION
     - runuser -u "$TEST_USER" -- task dev-setup:venv:ci
   script:
@@ -70,8 +70,6 @@ tests:
     # it owned by TEST_USER, failing git's ownership check in later root jobs
     - chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR"
 <% else %>
-    - curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
-    - source $HOME/.local/bin/env
     - uv python install $PYTHON_VERSION
     - task dev-setup:venv:ci
   script:
@@ -109,8 +107,7 @@ release:
 <% endif %>
   before_script:
     - apt-get update && apt-get install -y git curl
-    - curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
-    - source $HOME/.local/bin/env
+    - bash "scripts/<< template_name >>/install-uv.sh"
     - uv sync --locked --group dev
   script:
     - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"
