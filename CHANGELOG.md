@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v0.28.0 (2026-11-04)
+
+### Features
+
+- Add beta flag to leave Docker out of the GitLab CI tests job
+  ([`c92ba86`](https://github.com/cbrown1234/copier-template-copier-template/commit/c92ba868f0edd33a67c5e9490087f02d6d113af1))
+
+
 ## v0.27.2 (2026-11-04)
 
 ### Bug Fixes
