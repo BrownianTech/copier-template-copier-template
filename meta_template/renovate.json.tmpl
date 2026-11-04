@@ -13,6 +13,22 @@
     }
   ],
   "packageRules": [
+<% if vcs_platform == 'gitlab' and gitlab_docker %>
+    {
+      "description": "The Docker client and its plugins are released together, so are updated together",
+      "matchDatasources": [
+        "deb"
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin"
+      ],
+      "groupName": "Docker client",
+      "automerge": true,
+      "prConcurrentLimit": 10
+    },
+<% endif %>
 <% if include_actions_lockfile %>
     {
       "description": "actions.lock pins actions to commits, and gh actions-lock rewrites digest refs back to tags. Possibly unnecessary with the 'Require actions to be pinned to a full-length commit SHA' policy enabled, under which gh actions-lock is documented to keep digest refs (untested).",

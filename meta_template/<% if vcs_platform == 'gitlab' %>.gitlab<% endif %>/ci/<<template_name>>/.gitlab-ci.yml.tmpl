@@ -38,6 +38,16 @@ tests:
     DOCKER_TLS_CERTDIR: "/certs"  # should be mounded by the gitlab runner
     DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+    # Docker client packages for install-docker-client.sh, looked up in the apt
+    # repo it installs from. renovate.json groups them so they move together.
+    # Upstream versions only, the script finds the build for the image's Debian
+    # release. The lookups' suite must match the image's release
+    # renovate: datasource=deb depName=docker-ce-cli extractVersion=^(?:\d+:)?(?<version>\d+\.\d+\.\d+)- registryUrl=https://download.docker.com/linux/debian?suite=trixie&components=stable&binaryArch=amd64
+    DOCKER_CE_CLI_VERSION: "29.9.3"
+    # renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?:\d+:)?(?<version>\d+\.\d+\.\d+)- registryUrl=https://download.docker.com/linux/debian?suite=trixie&components=stable&binaryArch=amd64
+    DOCKER_BUILDX_PLUGIN_VERSION: "0.38.1"
+    # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?:\d+:)?(?<version>\d+\.\d+\.\d+)- registryUrl=https://download.docker.com/linux/debian?suite=trixie&components=stable&binaryArch=amd64
+    DOCKER_COMPOSE_PLUGIN_VERSION: "5.7.0"
 <% endif %>
   before_script:
     - apt-get update && apt-get install -y git curl
