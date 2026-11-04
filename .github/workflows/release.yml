@@ -22,6 +22,8 @@ jobs:
 
   release:
     needs: tests
+    # Forks have none of the upstream tags, so a release there would start over at v0.1.0
+    if: ${{ !github.event.repository.fork }}
     runs-on: ubuntu-latest
 
     permissions:
