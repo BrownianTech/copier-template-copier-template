@@ -136,6 +136,19 @@ gitlab_non_root_tests:
   when: "<< vcs_platform == 'gitlab' and gitlab_non_root_tests | default(false) >>"
   validator: "<% if gitlab_non_root_tests and vcs_platform != 'gitlab' %>only supported with GitLab<% endif %>"
 
+# Beta: hidden unless opted out with `-d gitlab_docker=false`, see the
+# `pre_commit_tool` notes above for how a non-default choice is recorded.
+# Not asked yet: templates that don't use Docker pay for the docker:dind
+# service and CLI install in every tests job, and dind needs privileged
+# runners. Revisit whether the default should flip once more projects opt out.
+# To graduate: set `when` to `vcs_platform == 'gitlab'` and pick the default.
+gitlab_docker:
+  type: bool
+  help: Give the generated GitLab CI tests Docker (a docker:dind service with the docker CLI, buildx and compose)
+  default: true
+  when: "<< vcs_platform == 'gitlab' and not gitlab_docker | default(true) >>"
+  validator: "<% if not gitlab_docker and vcs_platform != 'gitlab' %>only supported with GitLab<% endif %>"
+
 all_python_versions:
   type: yaml
   default: |

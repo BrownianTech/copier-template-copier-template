@@ -4,8 +4,10 @@ tests:
   needs: []
   image:
     name: debian:trixie-slim
+<% if gitlab_docker %>
   services:
     - name: docker:dind
+<% endif %>
   parallel:
     matrix:
       - PYTHON_VERSION: ["<< python_versions | join('", "') >>"]
@@ -24,16 +26,23 @@ tests:
     # mounts by docker containers
     TEST_USER: builder
 <% endif %>
+<% if gitlab_docker %>
     # When using dind service, you must instruct Docker to talk with
     # the daemon started inside of the service
     # These are usually specified by the entrypoint, if using the "docker" image
+    # Ports published by `docker run -p` or compose are on the `docker` host,
+    # not localhost
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"  # should be mounded by the gitlab runner
     DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+<% endif %>
   before_script:
     - apt-get update && apt-get install -y git curl
-    - apt-get install --no-install-recommends -y docker-cli
+<% if gitlab_docker %>
+    # Docker client and plugins only, the docker:dind service runs the daemon
+    - bash "scripts/<< template_name >>/install-docker-client.sh"
+<% endif %>
 <% if gitlab_non_root_tests %>
     - useradd --create-home "$TEST_USER"
     - chown -R "$TEST_USER:" "$CI_PROJECT_DIR"
