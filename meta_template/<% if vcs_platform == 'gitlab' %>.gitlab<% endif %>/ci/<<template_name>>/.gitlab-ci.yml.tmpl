@@ -1,9 +1,21 @@
 ---
 tests:
   stage: test
+<% if gitlab_prebuilt_ci_image %>
+  # Wait for the image build when this pipeline has one, so the tests run in
+  # the image built for this commit, not whatever :latest was before
+  needs:
+    - job: build-<< template_name >>-ci-image
+      optional: true
+  image:
+    # A stale image only costs time: before_script installs whatever differs
+    # from the versions pinned below, and uv downloads any Python it lacks
+    name: $CI_REGISTRY_IMAGE/<< template_name >>-ci:$TESTS_IMAGE_TAG
+<% else %>
   needs: []
   image:
     name: debian:trixie-slim
+<% endif %>
 <% if gitlab_docker %>
   services:
     - name: docker:dind
@@ -11,7 +23,11 @@ tests:
   parallel:
     matrix:
       - PYTHON_VERSION: ["<< python_versions | join('", "') >>"]
+<% if gitlab_prebuilt_ci_image %>
+  variables: &<< template_name >>-tests-variables
+<% else %>
   variables:
+<% endif %>
     # renovate: datasource=github-releases depName=astral-sh/uv
     UV_VERSION: "0.13.7"
     # Looked up in the apt repo install-task.sh installs from, so Renovate only
@@ -20,8 +36,12 @@ tests:
     TASK_VERSION: "3.54.0"
     UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
     << pre_commit_home_var >>: "$CI_PROJECT_DIR/.cache/<< pre_commit_tool >>"
+    # uv sync uses this Python, downloading it when the image doesn't have it
     UV_PYTHON: "$PYTHON_VERSION"
     GIT_DEPTH: "0"  # All git tags needed for copier
+<% if gitlab_prebuilt_ci_image %>
+    TESTS_IMAGE_TAG: latest
+<% endif %>
 <% if gitlab_non_root_tests %>
     # Run tests as a non-root user, like a developer would locally. Root ignores
     # file permissions, hiding issues like root-owned files written into bind
@@ -51,8 +71,8 @@ tests:
 <% endif %>
   before_script:
 <% if not gitlab_non_root_tests %>
-    # Where uv python install and uv tool install put executables. First, so
-    # the install scripts check the versions on the PATH the job runs with
+    # Where uv tool install puts executables. First, so the install scripts
+    # check the versions on the PATH the job runs with
     - export PATH="$HOME/.local/bin:$PATH"
 <% endif %>
     # Skipped when the image already has them, e.g. a prebuilt CI image
@@ -70,10 +90,8 @@ tests:
 <% if gitlab_non_root_tests %>
     - useradd --create-home "$TEST_USER"
     - chown -R "$TEST_USER:" "$CI_PROJECT_DIR"
-    # Where uv python install and uv tool install put executables, as on the
-    # root path
+    # Where uv tool install puts executables, as on the root path
     - export PATH="/home/$TEST_USER/.local/bin:$PATH"
-    - runuser -u "$TEST_USER" -- uv python install $PYTHON_VERSION
     - runuser -u "$TEST_USER" -- task dev-setup:venv:ci
   script:
     - runuser -u "$TEST_USER" -- task test
@@ -82,7 +100,6 @@ tests:
     # it owned by TEST_USER, failing git's ownership check in later root jobs
     - chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR"
 <% else %>
-    - uv python install $PYTHON_VERSION
     - task dev-setup:venv:ci
   script:
     - task test
@@ -94,6 +111,65 @@ tests:
     - key: tests-<< pre_commit_tool >>-py$PYTHON_VERSION
       paths:
         - ${<< pre_commit_home_var >>}
+<% if gitlab_prebuilt_ci_image %>
+  rules:
+    - changes: &<< template_name >>-ci-image-inputs
+        - .gitlab/ci/<< template_name >>/**/*
+        - scripts/<< template_name >>/**/*
+      variables:
+        TESTS_IMAGE_TAG: $CI_COMMIT_SHORT_SHA
+    - when: on_success
+
+build-<< template_name >>-ci-image:
+  stage: test
+  needs: []
+  # Pipelines that don't change the inputs don't rebuild, so a build cancelled
+  # by a newer push would leave :latest on the previous image
+  interruptible: false
+  image: docker:cli
+  services:
+    - name: docker:dind
+  # The tests job's, for the tool versions to build with and the dind settings
+  variables: *<< template_name >>-tests-variables
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    # :latest is what pipelines that don't rebuild fall back to, so only the
+    # default branch moves it
+    - |
+      image="$CI_REGISTRY_IMAGE/<< template_name >>-ci"
+      latest_tag=""
+      if [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ]; then
+        latest_tag="--tag $image:latest"
+      fi
+      # A schedule changes none of the inputs, so the cache would reuse the
+      # apt layer and push the same image
+      no_cache=""
+      if [ "$CI_PIPELINE_SOURCE" = schedule ]; then
+        no_cache="--no-cache"
+      fi
+      # The context is just the install scripts, which the image runs. Each
+      # version comes from the job's environment.
+      docker buildx build \
+        --file ".gitlab/ci/<< template_name >>/image/Dockerfile" \
+        --build-arg UV_VERSION \
+        --build-arg TASK_VERSION \
+        --build-arg DOCKER_CE_CLI_VERSION \
+        --build-arg DOCKER_BUILDX_PLUGIN_VERSION \
+        --build-arg DOCKER_COMPOSE_PLUGIN_VERSION \
+        --build-arg PYTHON_VERSIONS="<< python_versions | join(' ') >>" \
+        --cache-from "type=registry,ref=$image:latest" \
+        --cache-to type=inline \
+        $no_cache \
+        $latest_tag \
+        --tag "$image:$CI_COMMIT_SHORT_SHA" \
+        --push \
+        "scripts/<< template_name >>"
+  rules:
+    # Also true in scheduled pipelines, so a pipeline schedule on the default
+    # branch rebuilds :latest from scratch with Debian's latest package updates
+    - changes: *<< template_name >>-ci-image-inputs
+<% endif %>
 <% if include_semantic_release %>
 
 release:

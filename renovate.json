@@ -48,6 +48,23 @@
       "semanticCommitType": "build"
     },
     {
+      "description": "Template files keep tags rather than digests: a generated project's Renovate pins digests and keeps them current itself. Images on rolling tags like debian:trixie-slim get a new digest on every rebuild, so pinning them here would mean a template release, and a copier update conflict for projects whose Renovate has moved on, each time. GitHub Actions are the exception, below.",
+      "matchFileNames": [
+        "meta_template/**"
+      ],
+      "pinDigests": false
+    },
+    {
+      "description": "Exception to the rule above: template actions are pinned like a generated project's Renovate pins them (helpers:pinGitHubActionDigests), as <sha> # vX.Y.Z. An action's digest only changes with its version (or if upstream moves the tag, which the review rule below catches), so the template and projects move together and copier update merges cleanly. Must stay after the rule above, to override it.",
+      "matchFileNames": [
+        "meta_template/**"
+      ],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "pinDigests": true
+    },
+    {
       "matchDatasources": [
         "docker"
       ],

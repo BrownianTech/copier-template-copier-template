@@ -149,6 +149,22 @@ gitlab_docker:
   when: "<< vcs_platform == 'gitlab' and not gitlab_docker | default(true) >>"
   validator: "<% if not gitlab_docker and vcs_platform != 'gitlab' %>only supported with GitLab<% endif %>"
 
+# Beta: hidden unless opted in with `-d gitlab_prebuilt_ci_image=true`, see
+# the `include_actions_lockfile` notes above for how this works.
+# Not default yet: unproven on real GitLab runners, and it needs the project's
+# container registry plus a runner that can run docker:dind to build. Graduate
+# once it has run on GitLab pipelines and shown the time saved is worth that.
+# To graduate: set `when` to `vcs_platform == 'gitlab' and gitlab_docker` and
+# pick the default.
+gitlab_prebuilt_ci_image:
+  type: bool
+  help: Run the generated GitLab CI tests in an image prebuilt with their tools
+  default: false
+  when: "<< vcs_platform == 'gitlab' and gitlab_prebuilt_ci_image | default(false) >>"
+  validator: >-
+    <% if gitlab_prebuilt_ci_image and vcs_platform != 'gitlab' %>only supported with GitLab<% elif
+    gitlab_prebuilt_ci_image and not gitlab_docker %>needs gitlab_docker to build the image<% endif %>
+
 all_python_versions:
   type: yaml
   default: |
