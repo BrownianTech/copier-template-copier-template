@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.29.0 (2026-11-10)
+
+### Features
+
+- Supply chain improvements
+  ([#183](https://github.com/cbrown1234/copier-template-copier-template/pull/183),
+  [`7792833`](https://github.com/cbrown1234/copier-template-copier-template/commit/779283346c94a2c1c668140fa917ddda4b6ff186))
+
+
 ## v0.28.0 (2026-11-04)
 
 ### Features
