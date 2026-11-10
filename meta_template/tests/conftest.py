@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def template_dir(request: pytest.FixtureRequest) -> Path:
     return request.config.rootpath
 
