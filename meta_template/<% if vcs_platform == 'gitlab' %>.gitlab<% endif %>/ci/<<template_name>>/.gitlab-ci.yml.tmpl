@@ -50,7 +50,17 @@ tests:
     DOCKER_COMPOSE_PLUGIN_VERSION: "5.7.0"
 <% endif %>
   before_script:
-    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+<% if not gitlab_non_root_tests %>
+    # Where uv python install and uv tool install put executables. First, so
+    # the install scripts check the versions on the PATH the job runs with
+    - export PATH="$HOME/.local/bin:$PATH"
+<% endif %>
+    # Skipped when the image already has them, e.g. a prebuilt CI image
+    - |
+      if ! command -v curl > /dev/null || ! command -v git > /dev/null \
+          || [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
+        apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+      fi
     - bash "scripts/<< template_name >>/install-uv.sh"
     - bash "scripts/<< template_name >>/install-task.sh"
 <% if gitlab_docker %>
@@ -72,7 +82,6 @@ tests:
     # it owned by TEST_USER, failing git's ownership check in later root jobs
     - chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR"
 <% else %>
-    - export PATH="$HOME/.local/bin:$PATH"
     - uv python install $PYTHON_VERSION
     - task dev-setup:venv:ci
   script:
@@ -109,7 +118,12 @@ release:
   environment: release
 <% endif %>
   before_script:
-    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+    # Skipped when the image already has them, e.g. a prebuilt CI image
+    - |
+      if ! command -v curl > /dev/null || ! command -v git > /dev/null \
+          || [ ! -e /etc/ssl/certs/ca-certificates.crt ]; then
+        apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+      fi
     - bash "scripts/<< template_name >>/install-uv.sh"
     - uv sync --locked --group dev
   script:

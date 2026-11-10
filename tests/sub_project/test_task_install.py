@@ -57,6 +57,9 @@ def test_install_task_script(sub_project: Path) -> None:
     assert os.access(script, os.X_OK)
     text = script.read_text()
     assert '"task=$TASK_VERSION"' in text
+    assert '--allow-downgrades' in text
+    # Skipped when the image already has the pinned version
+    assert '[[ "$(installed_version task --version)" == "$TASK_VERSION" ]]' in text
     # One build serves every Debian release, so the image's release isn't used
     assert (
         'https://dl.cloudsmith.io/public/task/task/deb/debian any-version main' in text

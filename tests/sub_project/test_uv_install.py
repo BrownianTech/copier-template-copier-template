@@ -34,9 +34,10 @@ def test_jobs_install_uv_from_script(sub_project: Path, jobs: set[str]) -> None:
         before_script = job['before_script']
         # Recommends would add packages the job doesn't use, so the ones it
         # needs, ca-certificates included, are named
-        assert before_script[0] == (
+        assert any(
             'apt-get update && apt-get install --no-install-recommends -y '
-            'ca-certificates curl git'
+            'ca-certificates curl git' in cmd
+            for cmd in before_script
         )
         assert INSTALL_UV in before_script
         switch_user = [i for i, cmd in enumerate(before_script) if 'runuser' in cmd]
@@ -67,6 +68,20 @@ def test_tests_job_puts_local_bin_on_path(sub_project: Path, local_bin: str) -> 
 
 
 @pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)
+def test_root_tests_job_puts_local_bin_on_path_before_installs(
+    sub_project: Path,
+) -> None:
+    """The install scripts check versions on the PATH the job runs with.
+
+    Astral's installer puts uv in ~/.local/bin, so an image built with it
+    would otherwise shadow the pinned uv after the scripts had checked.
+    """
+    before_script = load_gitlab_ci(sub_project)['tests']['before_script']
+    export = 'export PATH="$HOME/.local/bin:$PATH"'
+    assert before_script.index(export) < before_script.index(INSTALL_UV)
+
+
+@pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)
 def test_install_uv_script(sub_project: Path) -> None:
     """The script checks the release archive against its checksum file."""
     script = scripts_dir(sub_project) / 'install-uv.sh'
@@ -77,5 +92,7 @@ def test_install_uv_script(sub_project: Path) -> None:
     )
     assert '"$url.sha256"' in text
     assert 'sha256sum --check --strict' in text
+    # Skipped when the image already has the pinned version
+    assert '[[ "$(installed_version uv --version)" == "$UV_VERSION" ]]' in text
     assert 'install.sh' not in text
     assert '| sh' not in text
