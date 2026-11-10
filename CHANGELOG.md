@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v0.30.0 (2026-11-10)
+
+### Features
+
+- Skip GitLab CI tool installs the image already has
+  ([#185](https://github.com/cbrown1234/copier-template-copier-template/pull/185),
+  [`a250055`](https://github.com/cbrown1234/copier-template-copier-template/commit/a25005576015f73f87f9d831171bc3c1fab2e679))
+
+
 ## v0.29.0 (2026-11-10)
 
 ### Features
