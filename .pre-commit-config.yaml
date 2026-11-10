@@ -42,10 +42,6 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
-        exclude: |
-            (?x)^(
-                scripts/install-task.sh
-            )$
   - repo: https://github.com/python-jsonschema/check-jsonschema
     rev: 0.38.2
     hooks:

@@ -13,6 +13,37 @@
     }
   ],
   "packageRules": [
+<% if vcs_platform == 'gitlab' and gitlab_docker %>
+    {
+      "description": "Installed together by install-docker-client.sh, so updated together",
+      "matchDatasources": [
+        "deb"
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin"
+      ],
+      "groupName": "Docker client"
+    },
+    {
+      "description": "Automerge minor and patch only: majors can drop API versions or change CLI behaviour, so get a reviewed PR",
+      "matchDatasources": [
+        "deb"
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10
+    },
+<% endif %>
 <% if include_actions_lockfile %>
     {
       "description": "actions.lock pins actions to commits, and gh actions-lock rewrites digest refs back to tags. Possibly unnecessary with the 'Require actions to be pinned to a full-length commit SHA' policy enabled, under which gh actions-lock is documented to keep digest refs (untested).",
@@ -71,7 +102,8 @@
       "prConcurrentLimit": 10
     },
     {
-      "matchPackageNames": [
+      "description": "Matched by depName, as GitLab CI looks Task up in its apt repo under packageName task",
+      "matchDepNames": [
         "go-task/task"
       ],
       "automerge": true,

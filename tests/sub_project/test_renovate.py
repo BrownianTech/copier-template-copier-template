@@ -10,37 +10,37 @@ from pathlib import Path
 import pytest
 from plumbum import local
 
-# The match string shared by Renovate's customManagers:githubActionsVersions and
-# customManagers:gitlabPipelineVersions presets
-RENOVATE_ANNOTATION_REGEX = (
-    r'# renovate: datasource=(?P<datasource>[a-zA-Z0-9-._]+?) '
-    r'depName=(?P<depName>[^\s]+?)'
-    r'(?: (?:lookupName|packageName)=(?P<packageName>[^\s]+?))?'
-    r'(?: versioning=(?P<versioning>[^\s]+?))?'
-    r'(?: extractVersion=(?P<extractVersion>[^\s]+?))?'
-    r'(?: registryUrl=(?P<registryUrl>[^\s]+?))?'
-    r'\s+[A-Za-z0-9_]+?_VERSION\s*:\s*["\']?(?P<currentValue>.+?)["\']?\s'
-)
+from tests.helpers import RENOVATE_ANNOTATION_REGEX
+
+DOCKER_CLIENT = {'docker-ce-cli', 'docker-buildx-plugin', 'docker-compose-plugin'}
 
 
 @pytest.mark.parametrize(
-    ('sub_project', 'preset', 'ci_glob'),
+    ('sub_project', 'preset', 'ci_glob', 'expected'),
     [
         (
             {'vcs_platform': 'github'},
             'customManagers:githubActionsVersions',
             '.github/workflows/*.yml',
+            {'astral-sh/uv', 'go-task/task'},
         ),
         (
             {'vcs_platform': 'gitlab'},
             'customManagers:gitlabPipelineVersions',
             '.gitlab/ci/**/.gitlab-ci.yml',
+            {'astral-sh/uv', 'go-task/task'} | DOCKER_CLIENT,
+        ),
+        (
+            {'vcs_platform': 'gitlab', 'gitlab_docker': False},
+            'customManagers:gitlabPipelineVersions',
+            '.gitlab/ci/**/.gitlab-ci.yml',
+            {'astral-sh/uv', 'go-task/task'},
         ),
     ],
     indirect=['sub_project'],
 )
 def test_ci_tool_versions_renovate_managed(
-    sub_project: Path, preset: str, ci_glob: str
+    sub_project: Path, preset: str, ci_glob: str, expected: set[str]
 ) -> None:
     """CI tool versions are annotated for the platform's Renovate preset."""
     renovate = json.loads((sub_project / 'renovate.json').read_text())
@@ -51,7 +51,7 @@ def test_ci_tool_versions_renovate_managed(
         for path in sub_project.glob(ci_glob)
         for match in re.finditer(RENOVATE_ANNOTATION_REGEX, path.read_text())
     }
-    assert dep_names == {'astral-sh/uv', 'go-task/task'}
+    assert dep_names == expected
 
 
 @pytest.mark.parametrize('sub_project', [{'vcs_platform': ''}], indirect=True)
@@ -66,6 +66,7 @@ def test_no_ci_preset_without_vcs_platform(sub_project: Path) -> None:
         {'vcs_platform': 'github'},
         {'vcs_platform': 'github', 'include_actions_lockfile': True},
         {'vcs_platform': 'gitlab'},
+        {'vcs_platform': 'gitlab', 'gitlab_docker': False},
         {'vcs_platform': ''},
     ],
     indirect=True,

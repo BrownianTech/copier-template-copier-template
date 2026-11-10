@@ -84,9 +84,24 @@
       "prConcurrentLimit": 10
     },
     {
-      "matchPackageNames": [
+      "description": "Matched by depName, as the GitLab CI template looks Task up in its apt repo under packageName task",
+      "matchDepNames": [
         "go-task/task"
       ],
+      "automerge": true,
+      "prConcurrentLimit": 10
+    },
+    {
+      "description": "Installed together by install-docker-client.sh, so updated together. Mirrors the rule in meta_template/renovate.json.tmpl.",
+      "matchDatasources": [
+        "deb"
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin"
+      ],
+      "groupName": "Docker client",
       "automerge": true,
       "prConcurrentLimit": 10
     },

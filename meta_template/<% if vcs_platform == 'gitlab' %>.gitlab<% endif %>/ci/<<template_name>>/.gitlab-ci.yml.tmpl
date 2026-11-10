@@ -14,8 +14,10 @@ tests:
   variables:
     # renovate: datasource=github-releases depName=astral-sh/uv
     UV_VERSION: "0.13.7"
-    # renovate: datasource=github-releases depName=go-task/task
-    GO_TASK_VERSION: "v3.54.0"
+    # Looked up in the apt repo install-task.sh installs from, so Renovate only
+    # proposes versions that install
+    # renovate: datasource=deb depName=go-task/task packageName=task registryUrl=https://dl.cloudsmith.io/public/task/task/deb/debian?suite=any-version&components=main&binaryArch=amd64
+    TASK_VERSION: "3.54.0"
     UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
     << pre_commit_home_var >>: "$CI_PROJECT_DIR/.cache/<< pre_commit_tool >>"
     UV_PYTHON: "$PYTHON_VERSION"
@@ -36,9 +38,21 @@ tests:
     DOCKER_TLS_CERTDIR: "/certs"  # should be mounded by the gitlab runner
     DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+    # Docker client packages for install-docker-client.sh, looked up in the apt
+    # repo it installs from. renovate.json groups them so they move together.
+    # Upstream versions only, the script finds the build for the image's Debian
+    # release. The lookups' suite must match the image's release
+    # renovate: datasource=deb depName=docker-ce-cli extractVersion=^(?:\d+:)?(?<version>\d+\.\d+\.\d+)- registryUrl=https://download.docker.com/linux/debian?suite=trixie&components=stable&binaryArch=amd64
+    DOCKER_CE_CLI_VERSION: "29.9.3"
+    # renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?:\d+:)?(?<version>\d+\.\d+\.\d+)- registryUrl=https://download.docker.com/linux/debian?suite=trixie&components=stable&binaryArch=amd64
+    DOCKER_BUILDX_PLUGIN_VERSION: "0.38.1"
+    # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?:\d+:)?(?<version>\d+\.\d+\.\d+)- registryUrl=https://download.docker.com/linux/debian?suite=trixie&components=stable&binaryArch=amd64
+    DOCKER_COMPOSE_PLUGIN_VERSION: "5.7.0"
 <% endif %>
   before_script:
-    - apt-get update && apt-get install -y git curl
+    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+    - bash "scripts/<< template_name >>/install-uv.sh"
+    - bash "scripts/<< template_name >>/install-task.sh"
 <% if gitlab_docker %>
     # Docker client and plugins only, the docker:dind service runs the daemon
     - bash "scripts/<< template_name >>/install-docker-client.sh"
@@ -46,10 +60,10 @@ tests:
 <% if gitlab_non_root_tests %>
     - useradd --create-home "$TEST_USER"
     - chown -R "$TEST_USER:" "$CI_PROJECT_DIR"
+    # Where uv python install and uv tool install put executables, as on the
+    # root path
     - export PATH="/home/$TEST_USER/.local/bin:$PATH"
-    - runuser -u "$TEST_USER" -- sh -c 'curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh'
     - runuser -u "$TEST_USER" -- uv python install $PYTHON_VERSION
-    - runuser -u "$TEST_USER" -- sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "/home/$TEST_USER/.local/bin" "$GO_TASK_VERSION"
     - runuser -u "$TEST_USER" -- task dev-setup:venv:ci
   script:
     - runuser -u "$TEST_USER" -- task test
@@ -58,10 +72,8 @@ tests:
     # it owned by TEST_USER, failing git's ownership check in later root jobs
     - chown -R "$(id -u):$(id -g)" "$CI_PROJECT_DIR"
 <% else %>
-    - curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
-    - source $HOME/.local/bin/env
+    - export PATH="$HOME/.local/bin:$PATH"
     - uv python install $PYTHON_VERSION
-    - sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b ~/.local/bin "$GO_TASK_VERSION"
     - task dev-setup:venv:ci
   script:
     - task test
@@ -97,9 +109,8 @@ release:
   environment: release
 <% endif %>
   before_script:
-    - apt-get update && apt-get install -y git curl
-    - curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh
-    - source $HOME/.local/bin/env
+    - apt-get update && apt-get install --no-install-recommends -y ca-certificates curl git
+    - bash "scripts/<< template_name >>/install-uv.sh"
     - uv sync --locked --group dev
   script:
     - git checkout -B "$CI_COMMIT_BRANCH" "$CI_COMMIT_SHA"

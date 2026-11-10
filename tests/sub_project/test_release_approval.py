@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.helpers import gitlab_ci_path
+
 
 @pytest.mark.parametrize(
     ('sub_project', 'expected'),
@@ -38,7 +40,7 @@ def test_release_approval_github(sub_project: Path, expected: bool) -> None:
 )
 def test_release_approval_gitlab(sub_project: Path, expected: bool) -> None:
     """The release job is manual on the default branch only when opted in."""
-    gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
+    gitlab_ci = gitlab_ci_path(sub_project)
     job = yaml.safe_load(gitlab_ci.read_text())['release']
     default_branch_rule = next(
         rule

@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 import yaml
 
-from tests.sub_project.test_renovate import RENOVATE_ANNOTATION_REGEX
+from tests.helpers import RENOVATE_ANNOTATION_REGEX
 
 
 @pytest.mark.parametrize(

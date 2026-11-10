@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.helpers import gitlab_ci_path
+
 
 @pytest.mark.parametrize(
     ('sub_project', 'expected'),
@@ -34,7 +36,7 @@ def test_semantic_release_files(sub_project: Path, expected: bool) -> None:
     assert ('release' in taskfile['includes']) == expected
 
     github_release = sub_project / '.github' / 'workflows' / 'release.yml'
-    gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
+    gitlab_ci = gitlab_ci_path(sub_project)
     if gitlab_ci.exists():
         assert ('release' in yaml.safe_load(gitlab_ci.read_text())) == expected
     else:
@@ -60,7 +62,7 @@ def test_github_release_skipped_on_forks(sub_project: Path) -> None:
 )
 def test_gitlab_release_skipped_without_token(sub_project: Path) -> None:
     """The release job is skipped without GITLAB_TOKEN, e.g. in forks."""
-    gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
+    gitlab_ci = gitlab_ci_path(sub_project)
     rules = yaml.safe_load(gitlab_ci.read_text())['release']['rules']
     token_rule = {'if': '$GITLAB_TOKEN == null || $GITLAB_TOKEN == ""', 'when': 'never'}
     default_branch_rule = next(

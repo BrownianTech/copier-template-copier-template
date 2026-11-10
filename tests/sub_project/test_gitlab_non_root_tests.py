@@ -9,10 +9,7 @@ from typing import Any
 import pytest
 import yaml
 
-
-def load_tests_job(sub_project: Path) -> dict[str, Any]:
-    gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
-    return yaml.safe_load(gitlab_ci.read_text())['tests']
+from tests.helpers import load_tests_job
 
 
 @pytest.mark.parametrize(

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# Installs the Docker CLI with the buildx and compose plugins, for the GitLab
+# CI tests job. Client only: the job's docker:dind service runs the daemon.
+#
+# The packages come from Docker's apt repo, as Debian's own lag behind. The
+# client can trail docker:dind, which isn't pinned, until Renovate's update
+# merges. That works as long as the daemon still supports the client's API
+# version. apt verifies the packages against docker.asc, Docker's signing key
+# committed next to this script, rather than a key fetched at runtime.
+#
+# The DOCKER_*_VERSION variables are set in the CI file, where Renovate keeps
+# them up to date. They're upstream versions (e.g. 29.9.3), as Docker builds
+# each Debian release separately (5:29.9.3-1~debian.13~trixie), so this finds
+# the build for the image's release.
+set -euo pipefail
+
+: "${DOCKER_CE_CLI_VERSION:?DOCKER_CE_CLI_VERSION must be set}"
+: "${DOCKER_BUILDX_PLUGIN_VERSION:?DOCKER_BUILDX_PLUGIN_VERSION must be set}"
+: "${DOCKER_COMPOSE_PLUGIN_VERSION:?DOCKER_COMPOSE_PLUGIN_VERSION must be set}"
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+keyring=/etc/apt/keyrings/docker.asc
+
+# Needed to reach Docker's repo over HTTPS, and missing from slim images. CI
+# installs it first, which saves an apt-get update here
+if [[ ! -e /etc/ssl/certs/ca-certificates.crt ]]; then
+    apt-get update
+    apt-get install --no-install-recommends -y ca-certificates
+fi
+
+install -D -m 0644 "$script_dir/docker.asc" "$keyring"
+
+arch="$(dpkg --print-architecture)"
+# shellcheck source=/dev/null
+codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+echo "deb [arch=$arch signed-by=$keyring] https://download.docker.com/linux/debian $codename stable" \
+    > /etc/apt/sources.list.d/docker.list
+
+# Without --error-on=any, an unreachable repo is only a warning, and the
+# install below then fails as if the pinned version didn't exist
+apt-get update --error-on=any
+
+# Prints the full apt version of a package's upstream version, ignoring the
+# epoch, so 29.9.3 matches 5:29.9.3-1~debian.13~trixie but 29.9 matches nothing
+apt_version() {
+    local package=$1 upstream=$2 version
+    version="$(apt-cache madison "$package" | awk -v upstream="$upstream" '
+        { version = $3; sub(/^[0-9]+:/, "", version) }
+        index(version, upstream "-") == 1 { print $3; exit }')"
+    if [[ -z "$version" ]]; then
+        echo "$package $upstream isn't in Docker's apt repo for $codename" >&2
+        return 1
+    fi
+    echo "$version"
+}
+
+cli_version="$(apt_version docker-ce-cli "$DOCKER_CE_CLI_VERSION")"
+buildx_version="$(apt_version docker-buildx-plugin "$DOCKER_BUILDX_PLUGIN_VERSION")"
+compose_version="$(apt_version docker-compose-plugin "$DOCKER_COMPOSE_PLUGIN_VERSION")"
+
+apt-get install --no-install-recommends -y \
+    "docker-ce-cli=$cli_version" \
+    "docker-buildx-plugin=$buildx_version" \
+    "docker-compose-plugin=$compose_version"

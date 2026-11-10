@@ -2,54 +2,33 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
+import json
 import os
+import re
 from pathlib import Path
-from typing import Any
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import yaml
 
-DOCKER_PACKAGES = 'docker-ce-cli docker-buildx-plugin docker-compose-plugin'
+from tests.helpers import (
+    RENOVATE_ANNOTATION_REGEX,
+    gitlab_ci_path,
+    load_tests_job,
+    openpgp_fingerprint,
+    scripts_dir,
+)
+
+# Each package with the CI variable that pins its version
+DOCKER_PACKAGES = {
+    'docker-ce-cli': 'DOCKER_CE_CLI_VERSION',
+    'docker-buildx-plugin': 'DOCKER_BUILDX_PLUGIN_VERSION',
+    'docker-compose-plugin': 'DOCKER_COMPOSE_PLUGIN_VERSION',
+}
+DOCKER_EXTRACT_VERSION = r'^(?:\d+:)?(?<version>\d+\.\d+\.\d+)-'
 # Docker's published fingerprint for its apt repo signing key, see
 # https://docs.docker.com/engine/install/debian/
 DOCKER_KEY_FINGERPRINT = '9DC858229FC7DD38854AE2D88D81803C0EBFCD88'
-
-
-def scripts_dir(sub_project: Path) -> Path:
-    return sub_project / 'scripts' / 'copier-template'
-
-
-def load_tests_job(sub_project: Path) -> dict[str, Any]:
-    gitlab_ci = sub_project / '.gitlab' / 'ci' / 'copier-template' / '.gitlab-ci.yml'
-    return yaml.safe_load(gitlab_ci.read_text())['tests']
-
-
-def openpgp_fingerprint(armored: str) -> str:
-    """V4 fingerprint of the primary key in an ASCII-armored public key block."""
-    lines = armored.strip().splitlines()
-    body = lines[lines.index('') + 1 :]
-    base64_lines = [line for line in body if not line.startswith(('=', '-'))]
-    data = base64.b64decode(''.join(base64_lines))
-    tag = data[0]
-    assert tag & 0x80, 'not an OpenPGP packet'
-    if tag & 0x40:  # new-format header
-        packet_tag, length_octet = tag & 0x3F, data[1]
-        assert length_octet in range(192, 224), 'unsupported packet length'
-        length = ((length_octet - 192) << 8) + data[2] + 192
-        start = 3
-    else:  # old-format header, only 2-byte lengths are used for keys this size
-        packet_tag = (tag >> 2) & 0x0F
-        assert tag & 0x03 == 1, 'unsupported packet length'
-        length = int.from_bytes(data[1:3])
-        start = 3
-    assert packet_tag == 6, 'first packet is not a public key'
-    packet = data[start : start + length]
-    assert packet[0] == 4, 'not a v4 key'
-    # V4 fingerprints are defined as SHA-1, this only compares against a known value
-    digest = hashlib.sha1(b'\x99' + length.to_bytes(2) + packet, usedforsecurity=False)
-    return digest.hexdigest().upper()
 
 
 @pytest.mark.parametrize(
@@ -82,23 +61,16 @@ def test_gitlab_docker_tests_job(sub_project: Path, expected: bool) -> None:
     assert (scripts_dir(sub_project) / 'docker.asc').exists() == expected
 
 
-@pytest.mark.parametrize(
-    'sub_project',
-    [{'vcs_platform': 'gitlab', 'gitlab_docker': False}, {'vcs_platform': 'github'}],
-    indirect=True,
-)
-def test_no_scripts_dir_without_gitlab_docker(sub_project: Path) -> None:
-    """Copier doesn't leave an empty scripts/ behind when nothing renders into it."""
-    assert not (sub_project / 'scripts').exists()
-
-
 @pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)
 def test_install_docker_client_script(sub_project: Path) -> None:
     """The script installs only the client and plugins, from the committed key."""
     script = scripts_dir(sub_project) / 'install-docker-client.sh'
     assert os.access(script, os.X_OK)
     text = script.read_text()
-    assert DOCKER_PACKAGES in ' '.join(text.replace('\\\n', ' ').split())
+    for package, variable in DOCKER_PACKAGES.items():
+        assert f'apt_version {package} "${variable}"' in text
+    # The image's Debian release picks the build, it isn't hard-coded
+    assert 'VERSION_CODENAME' in text
     assert 'https://download.docker.com/linux/debian' in text
     # The signing key comes from the repo, never the network
     assert '"$script_dir/docker.asc"' in text
@@ -133,3 +105,102 @@ def test_gitlab_docker_apt_key_fingerprint(sub_project: Path) -> None:
     """The committed key is Docker's apt repo signing key."""
     key = scripts_dir(sub_project) / 'docker.asc'
     assert openpgp_fingerprint(key.read_text()) == DOCKER_KEY_FINGERPRINT
+
+
+@pytest.mark.parametrize(
+    ('sub_project', 'expected'),
+    [
+        ({'vcs_platform': 'gitlab'}, True),
+        ({'vcs_platform': 'gitlab', 'gitlab_docker': False}, False),
+    ],
+    indirect=['sub_project'],
+)
+def test_docker_client_versions_renovate_managed(
+    sub_project: Path, expected: bool
+) -> None:
+    """Each pinned package is looked up in Docker's repo and updated as a group."""
+    gitlab_ci = gitlab_ci_path(sub_project)
+    variables = load_tests_job(sub_project)['variables']
+    lookups = {
+        match['depName']: match.groupdict()
+        for match in re.finditer(RENOVATE_ANNOTATION_REGEX, gitlab_ci.read_text())
+    }
+    for package, variable in DOCKER_PACKAGES.items():
+        assert (package in lookups) == expected
+        assert (variable in variables) == expected
+        if expected:
+            lookup = lookups[package]
+            assert lookup['datasource'] == 'deb'
+            assert lookup['extractVersion'] == DOCKER_EXTRACT_VERSION
+            registry_url = urlsplit(lookup['registryUrl'])
+            assert registry_url.netloc == 'download.docker.com'
+            assert registry_url.path == '/linux/debian'
+            # Upstream versions only, with no Debian release in them
+            assert re.fullmatch(r'\d+\.\d+\.\d+', variables[variable])
+            assert lookup['currentValue'] == variables[variable]
+
+    renovate = json.loads((sub_project / 'renovate.json').read_text())
+    groups = [
+        rule
+        for rule in renovate['packageRules']
+        if rule.get('groupName') == 'Docker client'
+    ]
+    assert bool(groups) == expected
+    if expected:
+        assert set(groups[0]['matchPackageNames']) == set(DOCKER_PACKAGES)
+
+
+@pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)
+def test_docker_lookups_match_image_release(sub_project: Path) -> None:
+    """Renovate checks the Debian release the tests job's image is on.
+
+    Docker builds each release separately and has no alias like `stable`, so
+    the lookups name it. Changing the image's release means changing these too.
+    """
+    gitlab_ci = gitlab_ci_path(sub_project)
+    image = load_tests_job(sub_project)['image']['name']
+    # Optionally pinned to a digest, as Renovate leaves it
+    match = re.fullmatch(
+        r'debian:(?P<release>[a-z]+)-slim(?:@sha256:[0-9a-f]{64})?', image
+    )
+    assert match, f'expected a debian:<release>-slim image, got {image}'
+    suites = {
+        parse_qs(urlsplit(lookup['registryUrl']).query)['suite'][0]
+        for lookup in re.finditer(RENOVATE_ANNOTATION_REGEX, gitlab_ci.read_text())
+        if lookup['depName'] in DOCKER_PACKAGES
+    }
+    assert suites == {match['release']}
+
+
+@pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)
+def test_docker_client_majors_not_automerged(sub_project: Path) -> None:
+    """Generated projects group every Docker update, but review the majors."""
+    renovate = json.loads((sub_project / 'renovate.json').read_text())
+    rules = [
+        rule
+        for rule in renovate['packageRules']
+        if set(rule.get('matchPackageNames', [])) == set(DOCKER_PACKAGES)
+    ]
+    assert all('matchUpdateTypes' not in rule for rule in rules if 'groupName' in rule)
+    automerged = [rule for rule in rules if rule.get('automerge')]
+    assert automerged
+    for rule in automerged:
+        assert set(rule['matchUpdateTypes']) == {'minor', 'patch'}
+
+
+def test_root_renovate_groups_docker_client() -> None:
+    """Renovate here groups the template's Docker lookups too.
+
+    Its .tmpl manager finds them in meta_template/, and the generated config's
+    rule only applies to generated projects.
+    """
+    root = Path(__file__).parents[2]
+    renovate = json.loads((root / 'renovate.json').read_text())
+    groups = [
+        rule
+        for rule in renovate['packageRules']
+        if rule.get('groupName') == 'Docker client'
+    ]
+    assert len(groups) == 1
+    assert set(groups[0]['matchPackageNames']) == set(DOCKER_PACKAGES)
+    assert groups[0]['matchDatasources'] == ['deb']
