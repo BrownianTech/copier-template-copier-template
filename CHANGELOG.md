@@ -2,6 +2,23 @@
 
 <!-- version list -->
 
+## v0.31.0 (2026-11-15)
+
+### Features
+
+- Switch the Renovate config to JSONC
+  ([`df348fd`](https://github.com/cbrown1234/copier-template-copier-template/commit/df348fd6b0fa3040b36bc4f525d25885a738d817))
+
+### Additional Release Information
+
+- Updating to this release needs `copier update --trust`, as it runs a migration (later updates
+  don't). Renovate's copier manager only passes --trust when a self-hosted Renovate sets
+  allowScripts and the repo sets ignoreScripts to false, so otherwise its update PR fails and the
+  update needs running by hand. The update conflicts on renovate.jsonc: if you never edited
+  renovate.json, take the "after updating" side; if you did, take it and move your edits below the
+  "Project ... below" markers.
+
+
 ## v0.30.3 (2026-11-13)
 
 ### Build System

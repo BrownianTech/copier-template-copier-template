@@ -248,7 +248,7 @@ wheels = [
 
 [[package]]
 name = "copier-template-copier-template"
-version = "0.30.3"
+version = "0.31.0"
 source = { virtual = "." }
 dependencies = [
     { name = "copier" },
