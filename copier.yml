@@ -13,6 +13,17 @@ _envops:
   undefined: jinja2.StrictUndefined  # error loudly for undefined variables
 _templates_suffix: .tmpl
 
+# One-time move of renovate.json to renovate.jsonc, so copier update shows a
+# project's renovate.json, edits and all, as a conflict against the new file
+# rather than deleting it. Projects that didn't edit it resolve by taking the
+# "after updating" side. Migrations need --trust, but only on updates that
+# cross the version: anything after the last release with renovate.json, which
+# test_migration_version_follows_renovate_json checks.
+_migrations:
+  - version: v0.30.3.post0
+    command: "if [ -f renovate.json ]; then git mv renovate.json renovate.jsonc; fi"
+    when: "<< _stage == 'before' >>"
+
 template_name:  # Useful for namespacing
   type: str
   default: 'copier-template'
@@ -113,7 +124,7 @@ release_approval:
 # full-length commit SHA" repo/org policy enabled, Renovate's docs say
 # `gh actions-lock` keeps digest refs. If that holds, lockfile projects match
 # the template, the policy belongs in the CONTRIBUTING setup steps, and the
-# `pinDigests: false` rule in renovate.json.tmpl can go. If not, graduating
+# `pinDigests: false` rule in renovate.jsonc.tmpl can go. If not, graduating
 # (lockfile by default) is the point to switch the template to tags.
 # To graduate: set `when` to `vcs_platform == 'github'` and pick the default.
 include_actions_lockfile:

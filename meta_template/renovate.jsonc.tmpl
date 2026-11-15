@@ -1,0 +1,155 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  // Managed by the copier template: edits above the "Project ..." markers may
+  // conflict on copier update. Add your own entries below the markers.
+  "extends": [
+    "config:best-practices",
+<% if vcs_platform == 'github' %>
+    // Picks up the `# renovate:` annotations on *_VERSION variables in workflows
+    "customManagers:githubActionsVersions",
+<% elif vcs_platform == 'gitlab' %>
+    // Picks up the `# renovate:` annotations on *_VERSION variables in .gitlab-ci.yml files
+    "customManagers:gitlabPipelineVersions",
+<% endif %>
+    // Project presets below
+  ],
+  // Leaves headroom for the automerged updates below, which get a limit of 10:
+  // Renovate checks each branch against its own updates' limit, so updates that
+  // need review can't take the last 3 slots.
+  "prConcurrentLimit": 7,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "prConcurrentLimit": 10,
+  },
+  "customManagers": [
+    {
+      // Matched with the copier rule in packageRules, so a copier update raises
+      // the minimum version in the same PR
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/copier\\.ya?ml$/",
+      ],
+      "matchStrings": [
+        "_min_copier_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']",
+      ],
+      "depNameTemplate": "copier",
+      "datasourceTemplate": "pypi",
+    },
+    // Project managers below
+  ],
+  // Later rules override earlier ones, so project rules below the marker take
+  // precedence over the template's.
+  "packageRules": [
+    {
+      // Images in the template's own template stay as tags, as the projects
+      // generated from it pin digests with their own Renovate
+      "matchDatasources": [
+        "docker",
+      ],
+      "matchFileNames": [
+        "<<template_dir>>/**",
+      ],
+      "matchUpdateTypes": [
+        "pinDigest",
+      ],
+      "enabled": false,
+    },
+    {
+      // A digest update keeps the version, so it's safe to automerge
+      "matchDatasources": [
+        "docker",
+      ],
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    {
+      "matchManagers": [
+        "github-actions",
+      ],
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+<% if include_actions_lockfile %>
+    {
+      // actions.lock pins actions to commits, and gh actions-lock rewrites digest
+      // refs back to tags.
+      // Possibly unnecessary with the "Require actions to be pinned to a
+      // full-length commit SHA" policy enabled, under which gh actions-lock is
+      // documented to keep digest refs (untested).
+      "matchManagers": [
+        "github-actions",
+      ],
+      "pinDigests": false,
+    },
+<% endif %>
+    {
+      "matchPackageNames": [
+        "astral-sh/uv",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    {
+      // Groups the copier dependency with _min_copier_version (see customManagers)
+      "matchPackageNames": [
+        "copier",
+      ],
+      "automerge": true,
+      "groupName": "copier",
+      // Raise the minimum in `copier>=` ranges too, to keep them in step
+      "rangeStrategy": "bump",
+      "prConcurrentLimit": 10,
+    },
+    {
+<% if vcs_platform == 'gitlab' %>
+      // Matched by depName, as GitLab CI looks Task up in its apt repo under
+      // packageName task
+<% endif %>
+      "matchDepNames": [
+        "go-task/task",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+<% if vcs_platform == 'gitlab' and gitlab_docker %>
+    {
+      // Installed together by install-docker-client.sh, so updated together
+      "matchDatasources": [
+        "deb",
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin",
+      ],
+      "groupName": "Docker client",
+    },
+    {
+      // Automerge minor and patch only: majors can drop API versions or change
+      // CLI behaviour, so get a reviewed PR
+      "matchDatasources": [
+        "deb",
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin",
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+<% endif %>
+    // Project rules below
+  ],
+}

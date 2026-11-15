@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Callable
 from pathlib import Path
@@ -11,7 +10,7 @@ from typing import Any
 import pytest
 import yaml
 
-from tests.helpers import RENOVATE_ANNOTATION_REGEX
+from tests.helpers import RENOVATE_ANNOTATION_REGEX, load_renovate
 
 
 @pytest.mark.parametrize(
@@ -29,7 +28,7 @@ def test_actions_lockfile_files(sub_project: Path, expected: bool) -> None:
     workflow = sub_project / '.github' / 'workflows' / 'verify-lockfile.yml'
     assert workflow.exists() == expected
 
-    renovate = json.loads((sub_project / 'renovate.json').read_text())
+    renovate = load_renovate(sub_project)
     assert (
         any(
             rule.get('matchManagers') == ['github-actions']

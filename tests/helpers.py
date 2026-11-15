@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+import pyjson5
 import yaml
 from plumbum import local
 from plumbum.cmd import git as _git
@@ -22,6 +23,12 @@ RENOVATE_ANNOTATION_REGEX = (
     r'(?: registryUrl=(?P<registryUrl>[^\s]+?))?'
     r'\s+[A-Za-z0-9_]+?_VERSION\s*:\s*["\']?(?P<currentValue>.+?)["\']?\s'
 )
+
+
+def load_renovate(project: Path) -> dict[str, Any]:
+    """Parse a project's renovate.jsonc, which can have comments and trailing commas."""
+    return pyjson5.decode((project / 'renovate.jsonc').read_text())
+
 
 git: LocalCommand = _git.with_env(
     GIT_AUTHOR_NAME=DEFAULT_GIT_USER_NAME,

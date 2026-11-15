@@ -1,0 +1,209 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  // Managed by the copier template: edits above the "Project ..." markers may
+  // conflict on copier update. Add your own entries below the markers.
+  "extends": [
+    "config:best-practices",
+    // Picks up the `# renovate:` annotations on *_VERSION variables in workflows
+    "customManagers:githubActionsVersions",
+    // Project presets below
+  ],
+  // Leaves headroom for the automerged updates below, which get a limit of 10:
+  // Renovate checks each branch against its own updates' limit, so updates that
+  // need review can't take the last 3 slots.
+  "prConcurrentLimit": 7,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "automerge": true,
+    "prConcurrentLimit": 10,
+  },
+  "customManagers": [
+    {
+      // Matched with the copier rule in packageRules, so a copier update raises
+      // the minimum version in the same PR
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/copier\\.ya?ml$/",
+      ],
+      "matchStrings": [
+        "_min_copier_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']",
+      ],
+      "depNameTemplate": "copier",
+      "datasourceTemplate": "pypi",
+    },
+    // Project managers below
+    {
+      // matchStrings copied verbatim from the customManagers:githubActionsVersions
+      // and gitlabPipelineVersions presets, which only scan .github/workflows and
+      // .gitlab-ci.yml, so annotations behave the same in the template's .tmpl
+      // files. Update together.
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/\\.tmpl$/",
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (?:lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s+[A-Za-z0-9_]+?_VERSION\\s*:\\s*[\"']?(?<currentValue>.+?)[\"']?\\s",
+      ],
+    },
+    {
+      // _min_copier_version in the template's copier.yml.tmpl, alongside the
+      // copier.yml manager above
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/copier\\.ya?ml\\.tmpl$/",
+      ],
+      "matchStrings": [
+        "_min_copier_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']",
+      ],
+      "depNameTemplate": "copier",
+      "datasourceTemplate": "pypi",
+    },
+    {
+      // The template's pyproject.toml.tmpl, which the pep621 manager can't parse
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/pyproject\\.toml\\.tmpl$/",
+      ],
+      "matchStrings": [
+        "\"copier>=(?<currentValue>[^\"]+)\"",
+      ],
+      "depNameTemplate": "copier",
+      "datasourceTemplate": "pypi",
+    },
+  ],
+  // Later rules override earlier ones, so project rules below the marker take
+  // precedence over the template's.
+  "packageRules": [
+    {
+      // Images in the template's own template stay as tags, as the projects
+      // generated from it pin digests with their own Renovate
+      "matchDatasources": [
+        "docker",
+      ],
+      "matchFileNames": [
+        "meta_template/**",
+      ],
+      "matchUpdateTypes": [
+        "pinDigest",
+      ],
+      "enabled": false,
+    },
+    {
+      // A digest update keeps the version, so it's safe to automerge
+      "matchDatasources": [
+        "docker",
+      ],
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    {
+      "matchManagers": [
+        "github-actions",
+      ],
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    {
+      "matchPackageNames": [
+        "astral-sh/uv",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    {
+      // Groups the copier dependency with _min_copier_version (see customManagers)
+      "matchPackageNames": [
+        "copier",
+      ],
+      "automerge": true,
+      "groupName": "copier",
+      // Raise the minimum in `copier>=` ranges too, to keep them in step
+      "rangeStrategy": "bump",
+      "prConcurrentLimit": 10,
+    },
+    {
+      "matchDepNames": [
+        "go-task/task",
+      ],
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    // Project rules below
+    {
+      // Undoes the template's rule above: this repo pins the template's images
+      // to digests, as generated projects' Renovate would
+      "matchDatasources": [
+        "docker",
+      ],
+      "matchFileNames": [
+        "meta_template/**",
+      ],
+      "matchUpdateTypes": [
+        "pinDigest",
+      ],
+      "enabled": true,
+    },
+    {
+      // Template updates use build commits, which trigger a patch release (see
+      // tool.semantic_release in pyproject.toml) so users get them on copier update.
+      "matchFileNames": [
+        "meta_template/**",
+      ],
+      "semanticCommitType": "build",
+    },
+    {
+      // Installed together by install-docker-client.sh, so updated together.
+      // Mirrors the rule meta_template/renovate.jsonc.tmpl renders for GitLab
+      // projects, which this repo's github rendering leaves out.
+      "matchDatasources": [
+        "deb",
+      ],
+      "matchPackageNames": [
+        "docker-ce-cli",
+        "docker-buildx-plugin",
+        "docker-compose-plugin",
+      ],
+      "groupName": "Docker client",
+      "automerge": true,
+      "prConcurrentLimit": 10,
+    },
+    // Must stay after the automerge rules above, to override their automerge and
+    // prConcurrentLimit.
+    {
+      // Template updates that need review: majors can change what generated
+      // projects get on copier update, and a digest change on a full-version tag
+      // means the tag was moved upstream.
+      "matchFileNames": [
+        "meta_template/**",
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "digest",
+      ],
+      "automerge": false,
+      "prConcurrentLimit": 7,
+    },
+    {
+      // Release template majors as a minor version, listed under Features.
+      "matchFileNames": [
+        "meta_template/**",
+      ],
+      "matchUpdateTypes": [
+        "major",
+      ],
+      "semanticCommitType": "feat",
+    },
+  ],
+  // The github-actions manager only scans .github/workflows by default
+  "github-actions": {
+    "managerFilePatterns": [
+      "/^meta_template/.+/workflows/.+\\.tmpl$/",
+    ],
+  },
+}

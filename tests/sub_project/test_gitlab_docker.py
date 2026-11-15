@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 from pathlib import Path
@@ -14,6 +13,7 @@ import yaml
 from tests.helpers import (
     RENOVATE_ANNOTATION_REGEX,
     gitlab_ci_path,
+    load_renovate,
     load_tests_job,
     openpgp_fingerprint,
     scripts_dir,
@@ -142,7 +142,7 @@ def test_docker_client_versions_renovate_managed(
             assert re.fullmatch(r'\d+\.\d+\.\d+', variables[variable])
             assert lookup['currentValue'] == variables[variable]
 
-    renovate = json.loads((sub_project / 'renovate.json').read_text())
+    renovate = load_renovate(sub_project)
     groups = [
         rule
         for rule in renovate['packageRules']
@@ -178,7 +178,7 @@ def test_docker_lookups_match_image_release(sub_project: Path) -> None:
 @pytest.mark.parametrize('sub_project', [{'vcs_platform': 'gitlab'}], indirect=True)
 def test_docker_client_majors_not_automerged(sub_project: Path) -> None:
     """Generated projects group every Docker update, but review the majors."""
-    renovate = json.loads((sub_project / 'renovate.json').read_text())
+    renovate = load_renovate(sub_project)
     rules = [
         rule
         for rule in renovate['packageRules']
@@ -198,7 +198,7 @@ def test_root_renovate_groups_docker_client() -> None:
     rule only applies to generated projects.
     """
     root = Path(__file__).parents[2]
-    renovate = json.loads((root / 'renovate.json').read_text())
+    renovate = load_renovate(root)
     groups = [
         rule
         for rule in renovate['packageRules']
